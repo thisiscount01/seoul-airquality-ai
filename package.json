@@ -1,0 +1,14 @@
+{
+  "name": "air-quality-ai",
+  "version": "1.0.0",
+  "description": "Seoul Air Quality AI Prediction",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "train": "node -e \"const t=require('./ai/trainer'); t.train().then(()=>console.log('OK'))\""
+  },
+  "dependencies": {
+    "brain.js": "^2.0.0-beta.24",
+    "node-fetch": "^2.7.0"
+  }
+}
