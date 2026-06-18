@@ -1,0 +1,559 @@
+/* ════════════════════════════════════════════════════════════════
+   서울 대기질 AI 예보 — style.css
+   색상 관리 규칙: [data-grade] CSS 셀렉터만 사용, JS 색상 하드코딩 없음
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 디자인 토큰 ────────────────────────────────────────────── */
+:root {
+  /* 서피스 */
+  --surf-bg:        #f0f4f8;
+  --surf-card:      #ffffff;
+  --surf-border:    #d1dbe8;
+  --surf-hover:     #e8eef5;
+  --surf-overlay:   rgba(240,244,248,.95);
+
+  /* 텍스트 */
+  --text-primary:   #0d1b2e;
+  --text-secondary: #4a6081;
+  --text-muted:     #8fa3bc;
+
+  /* 등급 색상 — 단일 소스 ★ */
+  --c-good:           #16a34a;
+  --c-good-soft:      #dcfce7;
+  --c-good-text:      #14532d;
+  --c-good-glow:      rgba(22,163,74,.20);
+
+  --c-moderate:       #ca8a04;
+  --c-moderate-soft:  #fef9c3;
+  --c-moderate-text:  #713f12;
+  --c-moderate-glow:  rgba(202,138,4,.18);
+
+  --c-unhealthy:      #ea580c;
+  --c-unhealthy-soft: #fff7ed;
+  --c-unhealthy-text: #7c2d12;
+  --c-unhealthy-glow: rgba(234,88,12,.18);
+
+  --c-very-unhealthy:      #dc2626;
+  --c-very-unhealthy-soft: #fee2e2;
+  --c-very-unhealthy-text: #7f1d1d;
+  --c-very-unhealthy-glow: rgba(220,38,38,.20);
+
+  /* PM10 차트 고정색 (등급과 무관) */
+  --c-pm10-bar:  #60a5fa;
+
+  /* 레이아웃 */
+  --r-sm:   6px;
+  --r-md:  12px;
+  --r-lg:  20px;
+  --r-xl:  28px;
+
+  --sh-sm:  0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --sh-md:  0 4px 8px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.05);
+  --sh-lg:  0 10px 20px rgba(0,0,0,.07), 0 4px 6px rgba(0,0,0,.04);
+
+  --trans: 200ms ease;
+}
+
+/* ── [data-grade] 컬러 위임 — 이 블록이 유일한 색상 진실 소스 ── */
+[data-grade="good"] {
+  --grade-color:  var(--c-good);
+  --grade-soft:   var(--c-good-soft);
+  --grade-text:   var(--c-good-text);
+  --grade-glow:   var(--c-good-glow);
+}
+[data-grade="moderate"] {
+  --grade-color:  var(--c-moderate);
+  --grade-soft:   var(--c-moderate-soft);
+  --grade-text:   var(--c-moderate-text);
+  --grade-glow:   var(--c-moderate-glow);
+}
+[data-grade="unhealthy"] {
+  --grade-color:  var(--c-unhealthy);
+  --grade-soft:   var(--c-unhealthy-soft);
+  --grade-text:   var(--c-unhealthy-text);
+  --grade-glow:   var(--c-unhealthy-glow);
+}
+[data-grade="very_unhealthy"] {
+  --grade-color:  var(--c-very-unhealthy);
+  --grade-soft:   var(--c-very-unhealthy-soft);
+  --grade-text:   var(--c-very-unhealthy-text);
+  --grade-glow:   var(--c-very-unhealthy-glow);
+}
+
+/* SVG 막대 색상 — data-grade 셀렉터 단독 지정, JS fill 코딩 없음 */
+.fc-bar-pm25                              { fill: var(--surf-border); }   /* fallback */
+.fc-bar-pm25[data-grade="good"]           { fill: var(--c-good); }
+.fc-bar-pm25[data-grade="moderate"]       { fill: var(--c-moderate); }
+.fc-bar-pm25[data-grade="unhealthy"]      { fill: var(--c-unhealthy); }
+.fc-bar-pm25[data-grade="very_unhealthy"] { fill: var(--c-very-unhealthy); }
+.fc-bar-pm10                              { fill: var(--c-pm10-bar); }
+
+/* ── 리셋 ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html {
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR',
+               -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--surf-bg);
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+body { min-height: 100dvh; }
+h1, h2, h3 { font-weight: 700; line-height: 1.25; }
+sub { font-size: .65em; vertical-align: baseline; }
+button { cursor: pointer; border: none; background: none; font: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ── 로딩 오버레이 ─────────────────────────────────────────── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--surf-overlay);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+  color: var(--text-secondary);
+  font-size: .95rem;
+  transition: opacity .3s ease, visibility .3s ease;
+  backdrop-filter: blur(4px);
+}
+.loading-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.spinner {
+  width: 44px; height: 44px;
+  border: 3px solid var(--surf-border);
+  border-top-color: var(--c-good);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 에러 배너 ─────────────────────────────────────────────── */
+.error-banner {
+  position: fixed;
+  bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex; align-items: center; gap: 10px;
+  background: #fff;
+  border: 1.5px solid #fca5a5;
+  border-radius: var(--r-md);
+  padding: 12px 18px;
+  box-shadow: var(--sh-lg);
+  color: #b91c1c;
+  font-size: .88rem;
+  max-width: min(500px, calc(100vw - 32px));
+}
+.error-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.error-retry {
+  margin-left: 4px; padding: 4px 14px;
+  background: #b91c1c; color: #fff;
+  border-radius: var(--r-sm);
+  font-size: .82rem;
+  transition: background var(--trans);
+  white-space: nowrap;
+}
+.error-retry:hover { background: #991b1b; }
+
+/* ── 앱 ─────────────────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* ── 헤더 ───────────────────────────────────────────────────── */
+.site-header {
+  background: var(--surf-card);
+  border-bottom: 1px solid var(--surf-border);
+  box-shadow: var(--sh-sm);
+  position: sticky;
+  top: 0; z-index: 100;
+}
+.header-inner {
+  max-width: 1280px; margin: 0 auto;
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.header-brand {
+  display: flex; align-items: center; gap: 10px;
+}
+.brand-icon {
+  width: 26px; height: 26px;
+  color: var(--c-good);
+  flex-shrink: 0;
+}
+.header-brand h1 { font-size: 1.1rem; letter-spacing: -.02em; }
+.brand-ai {
+  color: var(--c-good);
+  font-weight: 800;
+}
+
+.refresh-badge {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .78rem; color: var(--text-secondary);
+  background: var(--surf-bg);
+  border: 1px solid var(--surf-border);
+  border-radius: 999px;
+  padding: 5px 13px;
+  white-space: nowrap;
+}
+.refresh-dot {
+  width: 7px; height: 7px;
+  background: var(--c-good);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: blink 2.2s ease-in-out infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .3; }
+}
+
+/* ── 메인 ───────────────────────────────────────────────────── */
+.main-content {
+  flex: 1;
+  max-width: 1280px; margin: 0 auto; width: 100%;
+  padding: 20px 16px 36px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* ── 측정소 탭 ──────────────────────────────────────────────── */
+.station-tabs {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.station-tab {
+  padding: 8px 22px;
+  border-radius: 999px;
+  border: 1.5px solid var(--surf-border);
+  background: var(--surf-card);
+  color: var(--text-secondary);
+  font-size: .88rem; font-weight: 500;
+  transition: border-color var(--trans), color var(--trans),
+              background var(--trans), box-shadow var(--trans);
+}
+.station-tab:hover {
+  border-color: var(--c-good);
+  color: var(--c-good-text);
+  background: var(--c-good-soft);
+}
+.station-tab.active {
+  background: var(--c-good);
+  color: #fff;
+  border-color: var(--c-good);
+  box-shadow: 0 2px 10px var(--c-good-glow);
+}
+.station-tab:focus-visible {
+  outline: 2px solid var(--c-good);
+  outline-offset: 2px;
+}
+
+/* ── 현재 대기질 카드 ───────────────────────────────────────── */
+.current-card {
+  background: var(--surf-card);
+  border-radius: var(--r-xl);
+  border: 2px solid var(--surf-border);
+  box-shadow: var(--sh-md);
+  overflow: hidden;
+  transition: border-color var(--trans), box-shadow var(--trans);
+}
+.current-card[data-grade] {
+  border-color: var(--grade-color, var(--surf-border));
+  box-shadow: var(--sh-md), 0 0 0 4px var(--grade-glow, transparent);
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 28px 28px 22px;
+  flex-wrap: wrap;
+}
+
+/* 등급 블록 */
+.grade-block { display: flex; flex-direction: column; gap: 8px; min-width: 160px; }
+
+.grade-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--grade-color, #94a3b8);
+  color: #fff;
+  font-size: 1.45rem; font-weight: 800;
+  letter-spacing: -.01em;
+  transition: background var(--trans), box-shadow var(--trans);
+  box-shadow: 0 4px 12px var(--grade-glow, transparent);
+}
+.grade-emoji { font-size: 1.5rem; line-height: 1; }
+.grade-meta { font-size: .8rem; color: var(--text-muted); }
+
+/* PM 수치 카드들 */
+.pollutant-row {
+  display: flex; gap: 14px; flex: 1; flex-wrap: wrap;
+}
+.pollutant-card {
+  flex: 1; min-width: 120px;
+  background: var(--surf-bg);
+  border: 1px solid var(--surf-border);
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.pcard-label {
+  font-size: .75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.pcard-number { display: flex; align-items: baseline; gap: 4px; }
+.pcard-value {
+  font-size: 2.2rem; font-weight: 800;
+  letter-spacing: -.04em; line-height: 1;
+}
+.pcard-unit  { font-size: .75rem; color: var(--text-muted); }
+
+.pm25-card .pcard-value { color: var(--text-primary); }
+.pm10-card .pcard-value { color: var(--c-pm10-bar); }
+
+/* ── 건강 조언 ──────────────────────────────────────────────── */
+.health-advice {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 28px;
+  border-top: 1px solid var(--surf-border);
+  background: var(--grade-soft, var(--surf-bg));
+  transition: background var(--trans);
+}
+.advice-icon {
+  width: 18px; height: 18px;
+  fill: var(--grade-color, var(--text-muted));
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: fill var(--trans);
+}
+.health-advice p {
+  font-size: .88rem;
+  color: var(--grade-text, var(--text-secondary));
+  line-height: 1.65;
+  font-weight: 500;
+  transition: color var(--trans);
+}
+
+/* ── 예보 섹션 ──────────────────────────────────────────────── */
+.forecast-section {
+  background: var(--surf-card);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--surf-border);
+  box-shadow: var(--sh-md);
+  padding: 22px 22px 16px;
+}
+
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+  margin-bottom: 16px;
+}
+.section-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+
+.chart-legend {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .78rem; color: var(--text-secondary);
+}
+.legend-swatch {
+  width: 12px; height: 12px;
+  border-radius: 3px; flex-shrink: 0;
+}
+.pm25-swatch {
+  /* PM2.5는 등급에 따라 변하므로 현재 등급의 피커 역할 - 기본 좋음 */
+  background: linear-gradient(135deg,
+    var(--c-good) 0%, var(--c-moderate) 40%,
+    var(--c-unhealthy) 70%, var(--c-very-unhealthy) 100%);
+}
+.pm10-swatch { background: var(--c-pm10-bar); }
+.legend-note { font-size: .74rem; color: var(--text-muted); }
+
+/* 차트 스크롤/컨테이너 */
+.chart-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+.chart-container {
+  min-width: 360px;
+  width: 100%;
+}
+.chart-container svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* SVG 텍스트 스타일 — JS에서 className 부여 */
+.fc-axis-text {
+  font-family: inherit;
+  font-size: 11px;
+  fill: var(--text-secondary);
+}
+.fc-value-text {
+  font-family: inherit;
+  font-size: 10px;
+  fill: var(--text-secondary);
+  font-weight: 700;
+}
+.fc-conf-text {
+  font-family: inherit;
+  font-size: 9.5px;
+  fill: var(--text-muted);
+}
+.fc-guideline {
+  stroke: var(--surf-border);
+  stroke-width: 1;
+}
+
+/* ── 타임라인 등급 파이프 ───────────────────────────────────── */
+.timeline-row {
+  display: flex; gap: 6px;
+  margin-top: 12px;
+  padding: 0 2px;
+}
+.timeline-pip {
+  flex: 1; height: 6px;
+  border-radius: 999px;
+  background: var(--grade-color, var(--surf-border));
+  transition: background var(--trans);
+}
+
+/* ── 전체 측정소 현황 ───────────────────────────────────────── */
+.overview-section {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.stations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.station-mini-card {
+  background: var(--surf-card);
+  border-radius: var(--r-lg);
+  border: 1.5px solid var(--surf-border);
+  box-shadow: var(--sh-sm);
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  cursor: pointer;
+  transition: transform var(--trans), box-shadow var(--trans),
+              border-color var(--trans);
+}
+.station-mini-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--sh-md);
+}
+.station-mini-card:focus-visible {
+  outline: 2px solid var(--c-good);
+  outline-offset: 2px;
+}
+.station-mini-card[data-grade] {
+  border-color: var(--grade-color, var(--surf-border));
+}
+
+.station-mini-name {
+  font-size: .92rem; font-weight: 700;
+  color: var(--text-primary);
+}
+.station-mini-badge {
+  display: inline-flex;
+  align-items: center; gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: .78rem; font-weight: 600;
+  background: var(--grade-color, #94a3b8);
+  color: #fff;
+  align-self: flex-start;
+  transition: background var(--trans);
+}
+.station-mini-values {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: .8rem; color: var(--text-secondary);
+}
+.station-mini-values strong { font-weight: 700; color: var(--text-primary); }
+
+/* ── 푸터 ──────────────────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--surf-border);
+  background: var(--surf-card);
+  text-align: center;
+  padding: 20px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: .75rem;
+  color: var(--text-muted);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   반응형 — 모바일 375px 기준 → 데스크톱 1280px
+   ════════════════════════════════════════════════════════════════ */
+
+/* 극소 모바일 (≤ 400px) */
+@media (max-width: 400px) {
+  .header-inner { padding: 11px 14px; }
+  .header-brand h1 { font-size: .95rem; }
+  .refresh-badge { font-size: .72rem; padding: 4px 10px; }
+
+  .main-content { padding: 14px 12px 28px; gap: 14px; }
+
+  .card-top { padding: 18px 14px 14px; gap: 14px; }
+  .grade-badge { font-size: 1.2rem; padding: 8px 16px; }
+  .pcard-value { font-size: 1.7rem; }
+  .health-advice { padding: 12px 14px; }
+
+  .forecast-section { padding: 16px 14px 12px; }
+
+  .stations-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .station-mini-card { padding: 12px 12px; }
+}
+
+/* 일반 모바일 (401px ~ 640px) */
+@media (min-width: 401px) and (max-width: 640px) {
+  .card-top { flex-direction: column; align-items: flex-start; }
+  .pollutant-row { width: 100%; }
+  .pollutant-card { min-width: 0; }
+  .stations-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* 태블릿 (641px ~ 1023px) */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .stations-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* 데스크톱 (1024px+) */
+@media (min-width: 1024px) {
+  .main-content { padding: 28px 28px 48px; gap: 28px; }
+
+  .card-top { padding: 32px 36px 26px; gap: 32px; }
+  .grade-block { min-width: 180px; }
+  .grade-badge { font-size: 1.6rem; padding: 12px 28px; }
+  .pcard-value { font-size: 2.6rem; }
+  .health-advice { padding: 16px 36px; }
+
+  .forecast-section { padding: 28px 28px 20px; }
+
+  .stations-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* 와이드 데스크톱 (1280px) */
+@media (min-width: 1200px) {
+  .header-brand h1 { font-size: 1.2rem; }
+}
