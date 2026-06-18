@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="서울 주요 측정소 AI 기반 PM2.5·PM10 대기질 예보 대시보드" />
+  <title>서울 대기질 AI 예보</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── 로딩 오버레이 ─────────────────────────────────── -->
+  <div class="loading-overlay" id="loading" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>AI 예보 데이터 불러오는 중…</p>
+  </div>
+
+  <!-- ── 에러 배너 ─────────────────────────────────────── -->
+  <div class="error-banner" id="error-banner" role="alert" hidden>
+    <svg class="error-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+    </svg>
+    <span id="error-text">데이터를 불러오지 못했습니다.</span>
+    <button class="error-retry" id="error-retry" type="button">다시 시도</button>
+  </div>
+
+  <!-- ── 앱 ──────────────────────────────────────────────── -->
+  <div class="app" id="app" hidden>
+
+    <!-- 헤더 -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="header-brand">
+          <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+            <path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm0 2a8 8 0 100 16A8 8 0 0012 4zm1 3v5.586l3.707 3.707-1.414 1.414L11 14.414V7h2z"/>
+          </svg>
+          <h1>서울 대기질 <span class="brand-ai">AI 예보</span></h1>
+        </div>
+        <div class="header-meta">
+          <div class="refresh-badge" id="refresh-badge">
+            <span class="refresh-dot" aria-hidden="true"></span>
+            <span id="last-updated-text" aria-live="polite">갱신 중…</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+
+      <!-- 측정소 탭 -->
+      <nav class="station-tabs" id="station-tabs" aria-label="측정소 선택" role="tablist"></nav>
+
+      <!-- 현재 대기질 카드 -->
+      <section class="current-section" aria-label="현재 대기질">
+        <div class="current-card" id="current-card" data-grade="">
+
+          <div class="card-top">
+            <!-- 등급 배지 -->
+            <div class="grade-block" id="grade-block" data-grade="">
+              <div class="grade-badge" aria-label="현재 대기질 등급">
+                <span class="grade-emoji" id="grade-emoji" aria-hidden="true">–</span>
+                <span class="grade-label" id="grade-label">–</span>
+              </div>
+              <p class="grade-meta" id="grade-meta">–</p>
+            </div>
+
+            <!-- PM 수치 -->
+            <div class="pollutant-row">
+              <div class="pollutant-card pm25-card" aria-label="PM2.5 수치">
+                <span class="pcard-label">PM<sub>2.5</sub></span>
+                <div class="pcard-number">
+                  <span class="pcard-value" id="pm25-value">–</span>
+                  <span class="pcard-unit">μg/m³</span>
+                </div>
+              </div>
+              <div class="pollutant-card pm10-card" aria-label="PM10 수치">
+                <span class="pcard-label">PM<sub>10</sub></span>
+                <div class="pcard-number">
+                  <span class="pcard-value" id="pm10-value">–</span>
+                  <span class="pcard-unit">μg/m³</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 건강 조언 -->
+          <div class="health-advice" id="health-advice" data-grade="" role="complementary" aria-label="건강 조언">
+            <svg class="advice-icon" viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            <p id="advice-text">–</p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 6시간 예보 차트 -->
+      <section class="forecast-section" aria-label="6시간 예보">
+        <div class="section-header">
+          <h2 class="section-title">6시간 예보</h2>
+          <div class="chart-legend" aria-label="차트 범례">
+            <span class="legend-item">
+              <span class="legend-swatch pm25-swatch" aria-hidden="true"></span>PM<sub>2.5</sub>
+            </span>
+            <span class="legend-item">
+              <span class="legend-swatch pm10-swatch" aria-hidden="true"></span>PM<sub>10</sub>
+            </span>
+            <span class="legend-note" aria-label="투명도는 신뢰도를 나타냄">투명도 = 신뢰도</span>
+          </div>
+        </div>
+
+        <!-- SVG 차트 -->
+        <div class="chart-scroll-wrapper">
+          <div class="chart-container" id="forecast-chart"
+               role="img" aria-label="6시간 PM 농도 예보 막대그래프"></div>
+        </div>
+
+        <!-- 타임라인 등급 바 -->
+        <div class="timeline-row" id="timeline-row" aria-label="시간대별 예상 등급" role="list"></div>
+      </section>
+
+      <!-- 전체 측정소 현황 -->
+      <section class="overview-section" aria-label="전체 측정소 현황">
+        <h2 class="section-title">측정소별 현황</h2>
+        <div class="stations-grid" id="stations-grid" role="list"></div>
+      </section>
+
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="site-footer">
+      <p>데이터 출처: 한국환경공단 에어코리아 · AI 모델: brain.js LSTM</p>
+      <p>다음 갱신: <span id="next-refresh-text" aria-live="polite">–</span> (5분 자동갱신)</p>
+    </footer>
+
+  </div><!-- /#app -->
+
+  <script src="app.js"></script>
+</body>
+</html>
